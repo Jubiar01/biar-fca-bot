@@ -186,7 +186,7 @@ async function replyWithDownloadLink(reply, tiktokUrl, videoData, sizeBytes, dir
 module.exports = {
   description: "Download a TikTok video.",
   usage: "<url>",
-  async execute({ args, reply, rootDir }) {
+  async execute({ api, args, event, reply, rootDir }) {
     const tiktokUrl = args[0];
 
     if (!tiktokUrl) {
@@ -195,9 +195,18 @@ module.exports = {
     }
 
     const filePath = path.join(rootDir, `tiktok_${Date.now()}.mp4`);
+    let processingMsg = null;
 
     try {
-      await reply("Processing TikTok download...");
+      // Use the HTTP sendMessage directly to get a real Facebook-assigned message
+      // ID. The MQTT path returns only a synthetic local ID (mid.<otid>) which
+      // the unsend endpoint silently ignores, so the processing message would
+      // never actually be deleted.
+      processingMsg = await api.sendMessage(
+        "Processing TikTok download...",
+        event.threadID,
+        event.messageID,
+      );
 
       const response = await axios.get(`https://api.zenithapi.qzz.io/tiktok?url=${encodeURIComponent(tiktokUrl)}`);
       const result = response.data;
@@ -231,6 +240,14 @@ module.exports = {
         body: `TikTok video downloaded.\n\nAuthor: ${videoData.author || "Unknown"}\nTitle: ${videoData.title || "No title"}`,
         attachment: fs.createReadStream(filePath),
       });
+
+      if (processingMsg?.messageID && typeof api.unsendMessage === "function") {
+        try {
+          await api.unsendMessage(processingMsg.messageID);
+        } catch (unsendError) {
+          console.error("[TIKTOK] Failed to unsend processing message:", unsendError.message);
+        }
+      }
 
       console.log("[TIKTOK] Video sent successfully.");
     } catch (error) {

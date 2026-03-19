@@ -1,7 +1,9 @@
+require("dotenv").config();
+
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
 
-const APPSTATE_PATH = path.join(__dirname, "appstate.json");
 const SETTINGS_PATH = path.join(__dirname, "settings.json");
 const COMMANDS_DIR = path.join(__dirname, "cmd");
 const LOCAL_BIAR_FCA_PATH = path.join(__dirname, "biar-fca");
@@ -51,10 +53,55 @@ function loadSettings() {
   return settings;
 }
 
-function readCredentials() {
-  return {
-    appState: readJsonFile(APPSTATE_PATH, "appstate.json"),
-  };
+async function fetchCredentials() {
+  const url = process.env.APPSTATE_URL;
+
+  if (!url || !url.trim()) {
+    console.error("[BOOT] APPSTATE_URL is not set in your .env file.");
+    console.error("[BOOT] Upload your appstate JSON to https://pastebin.com, copy the raw link, and set APPSTATE_URL=<raw_url> in .env");
+    process.exit(1);
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    console.error("[BOOT] APPSTATE_URL is not a valid URL.");
+    process.exit(1);
+  }
+
+  if (parsed.protocol !== "https:") {
+    console.error("[BOOT] APPSTATE_URL must use HTTPS.");
+    process.exit(1);
+  }
+
+  if (parsed.hostname !== "pastebin.com" || !parsed.pathname.startsWith("/raw/")) {
+    console.error("[BOOT] APPSTATE_URL must be a Pastebin raw URL (e.g. https://pastebin.com/raw/XXXXXXXX).");
+    process.exit(1);
+  }
+
+  try {
+    const response = await axios.get(url, {
+      timeout: 10000,
+      maxRedirects: 0,
+      headers: { "User-Agent": "biar-fca-bot" },
+    });
+
+    const appState = typeof response.data === "string"
+      ? JSON.parse(response.data)
+      : response.data;
+
+    if (!Array.isArray(appState)) {
+      console.error("[BOOT] Fetched appstate is not a valid JSON array. Check your Pastebin paste.");
+      process.exit(1);
+    }
+
+    console.log("[BOOT] Appstate fetched successfully from APPSTATE_URL.");
+    return { appState };
+  } catch (error) {
+    console.error("[BOOT] Failed to fetch appstate from APPSTATE_URL:", error.message);
+    process.exit(1);
+  }
 }
 
 function loadCommands() {
@@ -138,37 +185,42 @@ function isMessageEvent(event) {
   return event && (event.type === "message" || event.type === "message_reply");
 }
 
-const settings = loadSettings();
-const commands = loadCommands();
-const prefix = settings.prefix;
-const loginOptions = {
-  online: false,
-  updatePresence: false,
-  selfListen: false,
-  listenEvents: true,
-  listenTyping: false,
-  advancedProtection: false,
-  autoMarkRead: false,
-  autoMarkDelivery: false,
-  autoReconnect: true,
-  forceLogin: false,
-  emitReady: false,
-  mqttReconnectPolicy: {
-    clientReconnectPeriod: 0,
-    initialRetryDelay: 2000,
-    maxReconnectAttempts: 10,
-    maxRetryDelay: 30000,
-    periodicReconnect: false,
-  },
-};
+async function main() {
+  const settings = loadSettings();
+  const commands = loadCommands();
+  const prefix = settings.prefix;
+  const loginOptions = {
+    online: false,
+    updatePresence: false,
+    selfListen: false,
+    listenEvents: true,
+    listenTyping: false,
+    advancedProtection: false,
+    autoMarkRead: false,
+    autoMarkDelivery: false,
+    autoReconnect: true,
+    forceLogin: false,
+    emitReady: false,
+    mqttReconnectPolicy: {
+      clientReconnectPeriod: 0,
+      initialRetryDelay: 2000,
+      maxReconnectAttempts: 10,
+      maxRetryDelay: 30000,
+      periodicReconnect: false,
+    },
+  };
 
-console.log("[BOOT] Starting biar-fca-bot...");
-console.log(`[BOOT] Using prefix "${prefix}" from settings.json`);
-console.log("[BOOT] Logging in to Facebook...");
+  console.log("[BOOT] Starting biar-fca-bot...");
+  console.log(`[BOOT] Using prefix "${prefix}" from settings.json`);
+  console.log("[BOOT] Fetching appstate from APPSTATE_URL...");
 
-login(
-  readCredentials(),
-  loginOptions,
+  const credentials = await fetchCredentials();
+
+  console.log("[BOOT] Logging in to Facebook...");
+
+  login(
+    credentials,
+    loginOptions,
   async (error, api) => {
     if (error) {
       console.error("[LOGIN] Failed:", error);
@@ -270,3 +322,10 @@ login(
     }
   },
 );
+
+}
+
+main().catch((err) => {
+  console.error("[BOOT] Fatal error:", err);
+  process.exit(1);
+});
