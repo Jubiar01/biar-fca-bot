@@ -1,0 +1,5 @@
+[phases.install]
+cmds = ["npm install", "npm install --prefix biar-fca"]
+
+[start]
+cmd = "node index.js"
