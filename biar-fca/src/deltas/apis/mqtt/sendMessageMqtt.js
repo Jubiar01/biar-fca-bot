@@ -287,7 +287,7 @@ module.exports = (defaultFuncs, api, ctx) => {
       };
 
       await ctx.mqttClient.publish("/ls_req", JSON.stringify(form), {
-        qos: 1,
+        qos: 0,
         retain: false
       });
 

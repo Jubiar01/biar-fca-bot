@@ -103,7 +103,7 @@ module.exports = function (defaultFuncs, api, ctx) {
     };
     context.payload = JSON.stringify(context.payload);
 
-    ctx.mqttClient.publish('/ls_req', JSON.stringify(context), { qos: 1, retain: false }, (err) => {
+    ctx.mqttClient.publish('/ls_req', JSON.stringify(context), { qos: 0, retain: false }, (err) => {
       if (err) {
         return _callback(new Error(`MQTT publish failed for emoji: ${err.message || err}`));
       }

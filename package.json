@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "axios": "^1.13.6",
+    "biar-fca": "file:./biar-fca",
     "dotenv": "^17.3.1"
   }
 }

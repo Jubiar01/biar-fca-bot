@@ -84,7 +84,7 @@ module.exports = function (defaultFuncs, api, ctx) {
 
     const publishMqtt = (content) =>
       new Promise((resolve, reject) => {
-        ctx.mqttClient.publish("/ls_req", JSON.stringify(content), { qos: 1, retain: false }, (err) => {
+        ctx.mqttClient.publish("/ls_req", JSON.stringify(content), { qos: 0, retain: false }, (err) => {
           if (err) reject(err);
           else resolve({ success: true, request_id: content.request_id });
         });

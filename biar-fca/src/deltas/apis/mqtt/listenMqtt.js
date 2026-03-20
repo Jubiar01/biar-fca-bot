@@ -38,7 +38,7 @@ const MQTT_CONFIG = {
     MIN_RECONNECT_TIME: 4 * 60 * 60 * 1000,
     MAX_RECONNECT_TIME: 8 * 60 * 60 * 1000,
     PROTOCOL_VERSION: 3,
-    QOS_LEVEL: 1,
+    QOS_LEVEL: 0, // QoS 0 avoids PUBACK - FB's MQTT server sends non-standard PUBACK that mqtt@5.x rejects
     INITIAL_RETRY_DELAY: 2000,
     MAX_RETRY_DELAY: 60000,
     RETRY_MULTIPLIER: 1.5
@@ -288,6 +288,16 @@ async function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
         mqttClient.on('error', (err) => {
             const errorMsg = err.message || String(err);
             const reconnectPolicy = getReconnectPolicy(ctx);
+
+            // Facebook's MQTT server sends non-standard PUBACK/SUBACK header flags.
+            // mqtt@5.x (via mqtt-packet) strictly validates these and emits an error.
+            // This is harmless — treat it as non-fatal and keep the connection alive.
+            if (errorMsg.includes('Invalid header flag bits') ||
+                errorMsg.includes('must be 0x0 for puback') ||
+                errorMsg.includes('must be 0x0 for suback')) {
+                utils.warn('Received non-standard MQTT packet from Facebook server (ignored)');
+                return;
+            }
             
             if (errorMsg.includes('Server unavailable') || errorMsg.includes('Connection refused')) {
                 mqttReconnectionTracker.attemptCount++;
@@ -449,7 +459,7 @@ async function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
                         mqttClient.publish(
                             '/orca_presence',
                             JSON.stringify({ "p": testPayload }),
-                            { qos: 1, retain: false },
+                            { qos: 0, retain: false },
                             (err) => {
                                 if (err && ctx.reconnectMqtt) {
                                     utils.error("Connection test failed. Forcing reconnection...");

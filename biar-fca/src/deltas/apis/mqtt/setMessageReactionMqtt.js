@@ -56,6 +56,6 @@ module.exports = function (defaultFuncs, api, ctx) {
       ctx.reqCallbacks[ctx.wsReqNumber] = callback;
     }*/
 
-    ctx.mqttClient.publish('/ls_req', JSON.stringify(content), { qos: 1, retain: false });
+    ctx.mqttClient.publish('/ls_req', JSON.stringify(content), { qos: 0, retain: false });
   };
 };

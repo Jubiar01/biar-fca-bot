@@ -63,7 +63,7 @@ module.exports = function (defaultFuncs, api, ctx) {
         // }
 
         ctx.mqttClient.publish('/ls_req', JSON.stringify(context), {
-            qos: 1, retain: false
+            qos: 0, retain: false
         });
     };
 };

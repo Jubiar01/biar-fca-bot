@@ -61,6 +61,6 @@ module.exports = function(defaultFuncs, api, ctx) {
       ctx.callback_Task[ctx.wsReqNumber] = { callback, type: "shareContact" };
     }
 
-    ctx.mqttClient.publish('/ls_req', JSON.stringify(context), { qos: 1, retain: false });
+    ctx.mqttClient.publish('/ls_req', JSON.stringify(context), { qos: 0, retain: false });
   };
 };

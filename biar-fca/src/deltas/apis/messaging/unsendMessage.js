@@ -32,7 +32,7 @@ module.exports = function (defaultFuncs, api, ctx) {
       };
 
       return new Promise((resolve, reject) => {
-        ctx.mqttClient.publish('/ls_req', JSON.stringify(context), { qos: 1, retain: false }, (err) => {
+        ctx.mqttClient.publish('/ls_req', JSON.stringify(context), { qos: 0, retain: false }, (err) => {
           if (err) return reject(err);
           resolve({ success: true });
         });

@@ -76,7 +76,7 @@ module.exports = function (defaultFuncs, api, ctx) {
                 mark: "read",
                 state: read,
               }),
-              { qos: 1, retain: false },
+              { qos: 0, retain: false },
               r,
             ),
           );

@@ -183,6 +183,11 @@ async function replyWithDownloadLink(reply, tiktokUrl, videoData, sizeBytes, dir
   );
 }
 
+function react(api, reaction, messageID) {
+  if (typeof api.setMessageReaction !== "function") return;
+  api.setMessageReaction(reaction, messageID).catch(() => {});
+}
+
 module.exports = {
   description: "Download a TikTok video.",
   usage: "<url>",
@@ -196,6 +201,9 @@ module.exports = {
 
     const filePath = path.join(rootDir, `tiktok_${Date.now()}.mp4`);
     let processingMsg = null;
+
+    // React with ⏳ to signal the bot is working on it
+    react(api, "⏳", event.messageID);
 
     try {
       // Use the HTTP sendMessage directly to get a real Facebook-assigned message
@@ -214,6 +222,7 @@ module.exports = {
 
       if (!result?.success || !videoData || !getTikTokCandidateUrls(videoData).length) {
         console.log("[TIKTOK] Invalid API response:", JSON.stringify(result));
+        react(api, "❌", event.messageID);
         await reply("TikTok API response was invalid.");
         return;
       }
@@ -227,6 +236,7 @@ module.exports = {
         console.log(
           `[TIKTOK] Skipping Messenger upload because file size ${downloadInfo.bytes} exceeds limit ${MAX_ATTACHMENT_BYTES}.`,
         );
+        react(api, "❌", event.messageID);
         await replyWithDownloadLink(reply, tiktokUrl, videoData, downloadInfo.bytes, downloadInfo.finalUrl);
         return;
       }
@@ -249,9 +259,13 @@ module.exports = {
         }
       }
 
+      // React with ✅ to confirm success
+      react(api, "✅", event.messageID);
       console.log("[TIKTOK] Video sent successfully.");
     } catch (error) {
       console.error("[TIKTOK] Command failed:", error);
+
+      react(api, "❌", event.messageID);
 
       if (error && error.statusCode === 413) {
         try {
